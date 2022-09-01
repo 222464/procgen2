@@ -5,8 +5,7 @@
 #include <math.h>
 
 // Global stuff that sticks around
-int32_t observations_size;
-cgym_key_value* observations;
+cgym_key_value observation;
 
 cgym_make_data make_data;
 cgym_reset_data reset_data;
@@ -49,18 +48,20 @@ cgym_make_data* cgym_make(char* render_mode, cgym_option* options, int32_t optio
     make_data.action_spaces[0].value_buffer.i[0] = 10;
 
     // Allocate observations once and re-use (doesn't resize dynamically)
-    observations_size = 10;
-    observations = (cgym_key_value*)malloc(observations_size * sizeof(int32_t));
+    observation.key = "obs";
+    observation.value_type = CGYM_VALUE_TYPE_FLOAT;
+    observation.value_buffer_size = 10;
+    observation.value_buffer.f = (float*)malloc(10 * sizeof(float));
 
     // Reset data
-    reset_data.observations_size = observations_size;
-    reset_data.observations = observations;
+    reset_data.observations_size = 1;
+    reset_data.observations = &observation;
     reset_data.infos_size = 0;
     reset_data.infos = NULL;
 
     // Step data
-    step_data.observations_size = observations_size;
-    step_data.observations = observations;
+    step_data.observations_size = 1;
+    step_data.observations = &observation;
     step_data.reward.f = 0.0f;
     step_data.terminated = false;
     step_data.truncated = false;
@@ -114,7 +115,7 @@ void cgym_close() {
     free(make_data.action_spaces);
 
     // Observations
-    free(observations);
+    free(observation.value_buffer.f);
 
     // Frame
     free(frame.value_buffer.b);
