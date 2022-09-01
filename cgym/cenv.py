@@ -80,13 +80,13 @@ class CGym_Make_Data(Structure):
                 ("action_spaces", POINTER(CGym_Key_Value))]
 
 class CGym_Reset_Data(Structure):
-    _fields_ = [("observation_size", c_int32),
+    _fields_ = [("observations_size", c_int32),
                 ("observations", POINTER(CGym_Key_Value)),
                 ("info_size", c_int32),
                 ("infos", POINTER(CGym_Key_Value))] 
 
 class CGym_Step_Data(Structure):
-    _fields_ = [("observation_size", c_int32),
+    _fields_ = [("observations_size", c_int32),
                 ("observations", POINTER(CGym_Key_Value)),
                 ("reward", CGym_Value),
                 ("terminated", c_bool),
@@ -187,16 +187,21 @@ class CEnv(Env):
         c_actions = None
         num_actions = 1
 
-        print(type(action))
-        if action is int:
+        if type(action) is int:
             c_action = c_int32(action)
-            c_actions = CGym_Key_Value("action", c_int32(CGYM_VALUE_TYPE_INT), c_int32(1), byref(c_action))
-        elif action is np.array:
+
+            c_value_buffer = CGym_Value_Buffer()
+            c_value_buffer.i = pointer(c_action)
+
+            c_actions = CGym_Key_Value(b"action", c_int32(CGYM_VALUE_TYPE_INT), c_int32(1), c_value_buffer)
+        elif type(action) is np.array:
             action = np.ascontiguousarray(action)
 
-            c_actions = CGym_Key_Value("action", c_int32(CGYM_NUMPY_DTYPE_TO_VALUE_TYPE[action.dtype]),
-                    c_int32(len(action)), byref(action.data))
-        elif action is dict:
+            c_value_buffer = CGym_Value_Buffer()
+            c_value_buffer.b = addressof(action.data)
+
+            c_actions = CGym_Key_Value(b"action", c_int32(CGYM_NUMPY_DTYPE_TO_VALUE_TYPE[action.dtype]), c_int32(len(action)), c_value_buffer)
+        elif type(action) is dict:
             num_actions = len(action)
             
             c_actions = CGym_Key_Value * num_actions
