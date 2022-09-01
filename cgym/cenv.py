@@ -2,8 +2,7 @@ import gym
 from gym import Env
 import collections
 import copy
-import os
-import platform
+import sys
 import numpy as np
 from ctypes import *
 import struct
@@ -49,6 +48,17 @@ CGYM_NUMPY_DTYPE_TO_VALUE_TYPE = {
     np.float64: 2,
     np.uint8: 3
 }
+
+CGYM_VALUE_TYPE_TO_NUMPY_DTYPE = [
+    np.int32,
+    np.float32,
+    np.float64,
+    np.uint8,
+
+    # Space
+    np.float32,
+    np.int32
+]
 
 class CGym_Value(Union):
     _fields_ = [("i", c_int32),
@@ -100,6 +110,27 @@ class CGym_Frame(Structure):
                 ("value_buffer_height", c_int32),
                 ("value_buffer_channels", c_int32),
                 ("value_buffer", CGym_Value_Buffer)]
+
+# From https://stackoverflow.com/questions/4355524/getting-data-from-ctypes-array-into-numpy
+def _make_nd_array(c_pointer, shape, dtype=np.float32, order='C', own_data=True):
+    arr_size = np.prod(shape[:]) * np.dtype(dtype).itemsize 
+
+    if sys.version_info.major >= 3:
+        buf_from_mem = pythonapi.PyMemoryView_FromMemory
+        buf_from_mem.restype = py_object
+        buf_from_mem.argtypes = (c_void_p, c_int, c_int)
+        buffer = buf_from_mem(c_pointer, arr_size, 0x100)
+    else:
+        buf_from_mem = pythonapi.PyBuffer_FromMemory
+        buf_from_mem.restype = py_object
+        buffer = buf_from_mem(c_pointer, arr_size)
+
+    arr = np.ndarray(tuple(shape[:]), dtype, buffer, order=order)
+
+    if own_data and not arr.flags.owndata:
+        return arr.copy()
+
+    return arr
 
 class CEnv(Env):
     metadata = {"render_modes": ["human", "rgb_array", "single_rgb_array"]}
@@ -154,7 +185,7 @@ class CEnv(Env):
             value_buffer_size = int(c_make_data.observation_spaces[i].value_buffer_size)
             c_buffer_p = c_make_data.observation_spaces[i].value_buffer.b # Always reference as bytes for now
 
-            arr = np.ctypeslib.as_array((CGYM_VALUE_TYPE_TO_CTYPE[value_type] * value_buffer_size).from_address(addressof(c_buffer_p.contents)))
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             space = None
 
@@ -170,9 +201,9 @@ class CEnv(Env):
         for i in range(c_make_data.action_spaces_size):
             value_type = int(c_make_data.action_spaces[i].value_type)
             value_buffer_size = int(c_make_data.action_spaces[i].value_buffer_size)
-            c_buffer_p = c_make_data.action_spaces[i].value_buffer.b
+            c_buffer_p = c_make_data.action_spaces[i].value_buffer.b # Always reference as bytes for now
 
-            arr = np.ctypeslib.as_array((CGYM_VALUE_TYPE_TO_CTYPE[value_type] * value_buffer_size).from_address(addressof(c_buffer_p.contents)))
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             space = None
 
@@ -222,13 +253,12 @@ class CEnv(Env):
         # Create observation
         observation = {}
 
-        print(c_step_data.infos_size)
         for i in range(c_step_data.observations_size):
             value_type = int(c_step_data.observations[i].value_type)
             value_buffer_size = int(c_step_data.observations[i].value_buffer_size)
             c_buffer_p = c_step_data.observations[i].value_buffer.b
 
-            arr = np.ctypeslib.as_array((CGYM_VALUE_TYPE_TO_CTYPE[value_type] * value_buffer_size).from_address(addressof(c_buffer_p.contents)))
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             observation[c_step_data.observations[i].key] = arr
         
@@ -239,7 +269,7 @@ class CEnv(Env):
             value_buffer_size = int(c_step_data.infos[i].value_buffer_size)
             c_buffer_p = c_step_data.infos[i].value_buffer.b
 
-            arr = np.ctypeslib.as_array((CGYM_VALUE_TYPE_TO_CTYPE[value_type] * value_buffer_size).from_address(addressof(c_buffer_p.contents)))
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             info[c_step_data.infos[i].key] = arr
 
@@ -270,7 +300,7 @@ class CEnv(Env):
             value_buffer_size = int(c_reset_data.observations[i].value_buffer_size)
             c_buffer_p = c_reset_data.observations[i].value_buffer
 
-            arr = np.ctypeslib.as_array((CGYM_VALUE_TYPE_TO_CTYPE[value_type] * value_buffer_size).from_address(addressof(c_buffer_p.contents)))
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             observation[c_reset_data.observations[i].key] = arr
         
@@ -281,7 +311,7 @@ class CEnv(Env):
             value_buffer_size = int(c_reset_data.infos[i].value_buffer_size)
             c_buffer_p = c_reset_data.infos[i].value_buffer.b
 
-            arr = np.ctypeslib.as_array((CGYM_VALUE_TYPE_TO_CTYPE[value_type] * value_buffer_size).from_address(addressof(c_buffer_p.contents)))
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             info[c_reset_data.infos[i].key] = arr
 
@@ -296,7 +326,7 @@ class CEnv(Env):
         value_buffer_size = c_frame.value_buffer_height * c_frame.value_buffer_width * c_frame.value_buffer_channels
         c_buffer_p = c_frame.value_buffer.b
 
-        arr = np.ctypeslib.as_array((CGYM_VALUE_TYPE_TO_CTYPE[value_type] * value_buffer_size).from_address(addressof(c_buffer_p.contents)))
+        arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
         return arr.reshape(c_frame.value_buffer_height, c_frame.value_buffer_width, c_frame.value_buffer_channels)
 

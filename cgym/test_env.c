@@ -46,6 +46,7 @@ cgym_make_data* cgym_make(char* render_mode, cgym_option* options, int32_t optio
     make_data.action_spaces[0].value_buffer_size = 1;
 
     make_data.action_spaces[0].value_buffer.i = (int32_t*)malloc(sizeof(int32_t));
+    make_data.action_spaces[0].value_buffer.i[0] = 10;
 
     // Allocate observations once and re-use (doesn't resize dynamically)
     observations_size = 10;
