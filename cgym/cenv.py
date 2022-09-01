@@ -187,6 +187,7 @@ class CEnv(Env):
         c_actions = None
         num_actions = 1
 
+        print(type(action))
         if action is int:
             c_action = c_int32(action)
             c_actions = CGym_Key_Value("action", c_int32(CGYM_VALUE_TYPE_INT), c_int32(1), byref(c_action))
