@@ -2,7 +2,7 @@ import gym
 import numpy as np
 from cenv import CEnv
 
-env = CEnv("test_env.so")
+env = CEnv("./test_env.so")
 
 for i in range(100):
     obs, reward, term, trunc, info = env.step(0)
