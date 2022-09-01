@@ -90,6 +90,8 @@ cgym_reset_data* cgym_reset(int32_t seed, cgym_option* options, int32_t options_
 cgym_step_data* cgym_step(cgym_key_value* actions, int32_t actions_size) {
     step_data.reward.f = sinf(t);
 
+    t += 0.25f;
+
     return &step_data;
 }
 
