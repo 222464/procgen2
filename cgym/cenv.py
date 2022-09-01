@@ -82,7 +82,7 @@ class CGym_Make_Data(Structure):
 class CGym_Reset_Data(Structure):
     _fields_ = [("observations_size", c_int32),
                 ("observations", POINTER(CGym_Key_Value)),
-                ("info_size", c_int32),
+                ("infos_size", c_int32),
                 ("infos", POINTER(CGym_Key_Value))] 
 
 class CGym_Step_Data(Structure):
@@ -91,7 +91,7 @@ class CGym_Step_Data(Structure):
                 ("reward", CGym_Value),
                 ("terminated", c_bool),
                 ("truncated", c_bool),
-                ("info_size", c_int32),
+                ("infos_size", c_int32),
                 ("infos", POINTER(CGym_Key_Value))] 
 
 class CGym_Frame(Structure):
@@ -222,6 +222,7 @@ class CEnv(Env):
         # Create observation
         observation = {}
 
+        print(c_step_data.infos_size)
         for i in range(c_step_data.observations_size):
             value_type = int(c_step_data.observations[i].value_type)
             value_buffer_size = int(c_step_data.observations[i].value_buffer_size)
