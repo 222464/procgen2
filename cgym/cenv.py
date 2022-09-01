@@ -273,7 +273,7 @@ class CEnv(Env):
 
             info[c_step_data.infos[i].key] = arr
 
-        reward = float(c_step_data.reward)
+        reward = float(c_step_data.reward.f)
         terminated = bool(c_step_data.terminated)
         truncated = bool(c_step_data.truncated)
 
