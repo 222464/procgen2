@@ -26,7 +26,7 @@ extern "C" {
 #define CGYM_VERSION 1
 
 // Poissible value types
-enum cgym_value_type {
+typedef enum {
     // Primitive values
     CGYM_VALUE_TYPE_INT = 0,
     CGYM_VALUE_TYPE_FLOAT = 1,
@@ -36,7 +36,7 @@ enum cgym_value_type {
     // Spaces
     CGYM_SPACE_TYPE_BOX = 4,
     CGYM_SPACE_TYPE_MULTI_DISCRETE = 5
-};
+} cgym_value_type;
 
 // Generic value type
 typedef union {
@@ -122,8 +122,8 @@ typedef struct {
 CGYM_API int32_t cgym_get_env_version(); // Version of environment
 CGYM_API cgym_make_data* cgym_make(char* render_mode, cgym_option* options, int32_t options_size); // Make the environment
 CGYM_API cgym_reset_data* cgym_reset(int32_t seed, cgym_option* options, int32_t options_size); // Reset the environment
-CGYM_API cgym_step_data* step(cgym_key_value* actions, int32_t actions_size); // Step (update) the environment
-CGYM_API cgym_frame* render(); // Render the environment to a frame
+CGYM_API cgym_step_data* cgym_step(cgym_key_value* actions, int32_t actions_size); // Step (update) the environment
+CGYM_API cgym_frame* cgym_render(); // Render the environment to a frame
 CGYM_API void cgym_close(); // Close (delete) the environment (shutdown)
 
 #ifdef __cplusplus

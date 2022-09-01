@@ -8,6 +8,16 @@ import numpy as np
 from ctypes import *
 import struct
 
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Tuple,
+    TypeVar
+)
+
 # Types
 CGYM_VALUE_TYPE_INT = 0
 CGYM_VALUE_TYPE_FLOAT = 1
@@ -47,15 +57,15 @@ class CGym_Value(Union):
                 ("b", c_byte)]
 
 class CGym_Value_Buffer(Union):
-    _fields_ = [("i", pointer(c_int32)),
-                ("f", pointer(c_float)),
-                ("d", pointer(c_double)),
-                ("b", pointer(c_byte))]
+    _fields_ = [("i", POINTER(c_int32)),
+                ("f", POINTER(c_float)),
+                ("d", POINTER(c_double)),
+                ("b", POINTER(c_byte))]
 
 class CGym_Key_Value(Structure):
     _fields_ = [("key", c_char_p),
                 ("value_type", c_int32),
-                ("value_buffer_size", cl_int32),
+                ("value_buffer_size", c_int32),
                 ("value_buffer", CGym_Value_Buffer)]
 
 class CGym_Option(Structure):
@@ -64,25 +74,25 @@ class CGym_Option(Structure):
                 ("value", CGym_Value)]
 
 class CGym_Make_Data(Structure):
-    _fields_ = [("observation_spaces_size", cl_int32),
-                ("observation_spaces", pointer(CGym_Key_Value)),
+    _fields_ = [("observation_spaces_size", c_int32),
+                ("observation_spaces", POINTER(CGym_Key_Value)),
                 ("info_size", c_int32),
-                ("infos", pointer(CGym_Key_Value))] 
+                ("infos", POINTER(CGym_Key_Value))] 
 
 class CGym_Reset_Data(Structure):
-    _fields_ = [("observation_size", cl_int32),
-                ("observations", pointer(CGym_Key_Value)),
+    _fields_ = [("observation_size", c_int32),
+                ("observations", POINTER(CGym_Key_Value)),
                 ("info_size", c_int32),
-                ("infos", pointer(CGym_Key_Value))] 
+                ("infos", POINTER(CGym_Key_Value))] 
 
 class CGym_Step_Data(Structure):
-    _fields_ = [("observation_size", cl_int32),
-                ("observations", pointer(CGym_Key_Value)),
+    _fields_ = [("observation_size", c_int32),
+                ("observations", POINTER(CGym_Key_Value)),
                 ("reward", CGym_Value),
                 ("terminated", c_bool),
                 ("truncated", c_bool),
                 ("info_size", c_int32),
-                ("infos", pointer(CGym_Key_Value))] 
+                ("infos", POINTER(CGym_Key_Value))] 
 
 class CGym_Frame(Structure):
     _fields_ = [("value_type", c_int32),
@@ -102,17 +112,17 @@ class CEnv(Env):
         self.lib.cgym_get_env_version.argtypes = []
         self.lib.cgym_get_env_version.restype = c_int32
 
-        self.lib.cgym_make.argtypes = [pointer(CGym_Option), c_int32]
-        self.lib.cgym_make.restype = pointer(CGym_Make_Data)
+        self.lib.cgym_make.argtypes = [POINTER(CGym_Option), c_int32]
+        self.lib.cgym_make.restype = POINTER(CGym_Make_Data)
 
-        self.lib.cgym_reset.argtypes = [c_int32, pointer(CGym_Option), c_int32]
-        self.lib.cgym_reset.restype = pointer(CGym_Reset_Data)
+        self.lib.cgym_reset.argtypes = [c_int32, POINTER(CGym_Option), c_int32]
+        self.lib.cgym_reset.restype = POINTER(CGym_Reset_Data)
 
-        self.lib.cgym_step.argtypes = [pointer(CGym_Key_Value), c_int32]
-        self.lib.cgym_step.restype = pointer(CGym_Step_Data)
+        self.lib.cgym_step.argtypes = [POINTER(CGym_Key_Value), c_int32]
+        self.lib.cgym_step.restype = POINTER(CGym_Step_Data)
 
         self.lib.cgym_frame.argtypes = []
-        self.lib.cgym_frame.restype = pointer(CGym_Frame)
+        self.lib.cgym_frame.restype = POINTER(CGym_Frame)
 
         self.lib.cgym_close.argtypes = []
         self.lib.cgym_close.restype = None
