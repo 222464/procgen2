@@ -293,7 +293,7 @@ class CEnv(Env):
 
         c_options = None
 
-        if options == None:
+        if options != None:
             c_options = CGym_Option * len(options)
 
         ret = self.lib.cgym_reset(c_int32(seed), c_options, c_int32(0 if options == None else len(options)))
@@ -307,7 +307,7 @@ class CEnv(Env):
         for i in range(self.c_reset_data.observations_size):
             value_type = int(self.c_reset_data.observations[i].value_type)
             value_buffer_size = int(self.c_reset_data.observations[i].value_buffer_size)
-            c_buffer_p = self.c_reset_data.observations[i].value_buffer
+            c_buffer_p = self.c_reset_data.observations[i].value_buffer.b
 
             arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 

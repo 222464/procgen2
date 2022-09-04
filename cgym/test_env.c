@@ -10,6 +10,7 @@ cgym_reset_data reset_data;
 cgym_step_data step_data;
 cgym_render_data render_data;
 
+// Shared value between different datas (optional)
 cgym_key_value observation;
 
 float t; // Timer
@@ -92,6 +93,8 @@ int32_t cgym_step(cgym_key_value* actions, int32_t actions_size) {
 
     t += 0.25f;
 
+    step_data.terminated = t >= 10.0f;
+
     return 0; // No error
 }
 
@@ -99,6 +102,8 @@ int32_t cgym_render() {
     for (int y = 0; y < 8; y++)
         for (int x = 0; x < 8; x++) {
             render_data.value_buffer.b[0 + 3 * (x + 8 * y)] = 64;
+            render_data.value_buffer.b[1 + 3 * (x + 8 * y)] = 64;
+            render_data.value_buffer.b[2 + 3 * (x + 8 * y)] = 64;
         }
 
     return 0; // No error
