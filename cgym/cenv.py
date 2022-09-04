@@ -104,7 +104,7 @@ class CGym_Step_Data(Structure):
                 ("infos_size", c_int32),
                 ("infos", POINTER(CGym_Key_Value))] 
 
-class CGym_Frame(Structure):
+class CGym_Render_Data(Structure):
     _fields_ = [("value_type", c_int32),
                 ("value_buffer_width", c_int32),
                 ("value_buffer_height", c_int32),
@@ -133,7 +133,7 @@ def _make_nd_array(c_pointer, shape, dtype=np.float32, order='C', own_data=True)
     return arr
 
 class CEnv(Env):
-    metadata = {"render_modes": ["human", "rgb_array", "single_rgb_array"]}
+    metadata = {"render_modes": ["human", "single_rgb_array"]}
 
     def __init__(self, lib_file_path: str, render_mode: Optional[str] = None, options: Optional[Dict[str, Any]] = None):
         # Load library
@@ -144,24 +144,30 @@ class CEnv(Env):
         self.lib.cgym_get_env_version.restype = c_int32
 
         self.lib.cgym_make.argtypes = [c_char_p, POINTER(CGym_Option), c_int32]
-        self.lib.cgym_make.restype = POINTER(CGym_Make_Data)
+        self.lib.cgym_make.restype = c_int32
 
         self.lib.cgym_reset.argtypes = [c_int32, POINTER(CGym_Option), c_int32]
-        self.lib.cgym_reset.restype = POINTER(CGym_Reset_Data)
+        self.lib.cgym_reset.restype = c_int32
 
         self.lib.cgym_step.argtypes = [POINTER(CGym_Key_Value), c_int32]
-        self.lib.cgym_step.restype = POINTER(CGym_Step_Data)
+        self.lib.cgym_step.restype = c_int32
 
         self.lib.cgym_render.argtypes = []
-        self.lib.cgym_render.restype = POINTER(CGym_Frame)
+        self.lib.cgym_render.restype = c_int32
 
         self.lib.cgym_close.argtypes = []
         self.lib.cgym_close.restype = None
 
-        c_make_data_p = None
+        # Get pointers to globals
+        self.c_make_data = CGym_Make_Data.in_dll(self.lib, "make_data")
+        self.c_reset_data = CGym_Reset_Data.in_dll(self.lib, "reset_data")
+        self.c_step_data = CGym_Step_Data.in_dll(self.lib, "step_data")
+        self.c_render_data = CGym_Render_Data.in_dll(self.lib, "render_data")
+
+        ret = 0
 
         if options == None:
-            c_make_data_p = self.lib.cgym_make(bytes("" if render_mode == None else render_mode, "ascii"), None, c_int32(0))
+            ret = self.lib.cgym_make(bytes("" if render_mode == None else render_mode, "ascii"), None, c_int32(0))
         else:
             # Make environment
             c_options = CGym_Option * len(options)
@@ -174,16 +180,17 @@ class CEnv(Env):
                 c_options[i].value_type = c_int32(value_type)
                 c_options[i].value = CGym_Value(GYM_VALUE_TYPE_TO_CTYPE[value_type](v))
 
-            c_make_data_p = self.lib.cgym_make("" if render_mode == None else render_mode, c_options, c_int32(len(options)))
+            ret = self.lib.cgym_make("" if render_mode == None else render_mode, c_options, c_int32(len(options)))
+
+        if ret != 0:
+            raise(Exception("Non-zero error code!"))
 
         self.observation_space = {}
 
-        c_make_data = c_make_data_p.contents
-        
-        for i in range(c_make_data.observation_spaces_size):
-            value_type = int(c_make_data.observation_spaces[i].value_type)
-            value_buffer_size = int(c_make_data.observation_spaces[i].value_buffer_size)
-            c_buffer_p = c_make_data.observation_spaces[i].value_buffer.b # Always reference as bytes for now
+        for i in range(self.c_make_data.observation_spaces_size):
+            value_type = int(self.c_make_data.observation_spaces[i].value_type)
+            value_buffer_size = int(self.c_make_data.observation_spaces[i].value_buffer_size)
+            c_buffer_p = self.c_make_data.observation_spaces[i].value_buffer.b # Always reference as bytes for now
 
             arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
@@ -194,14 +201,14 @@ class CEnv(Env):
             else:
                 space = gym.spaces.Box(arr[:len(arr) // 2], arr[len(arr) // 2:])
 
-            self.observation_space[c_make_data.observation_spaces[i].key] = space
+            self.observation_space[self.c_make_data.observation_spaces[i].key] = space
         
         self.action_space = {}
         
-        for i in range(c_make_data.action_spaces_size):
-            value_type = int(c_make_data.action_spaces[i].value_type)
-            value_buffer_size = int(c_make_data.action_spaces[i].value_buffer_size)
-            c_buffer_p = c_make_data.action_spaces[i].value_buffer.b # Always reference as bytes for now
+        for i in range(self.c_make_data.action_spaces_size):
+            value_type = int(self.c_make_data.action_spaces[i].value_type)
+            value_buffer_size = int(self.c_make_data.action_spaces[i].value_buffer_size)
+            c_buffer_p = self.c_make_data.action_spaces[i].value_buffer.b # Always reference as bytes for now
 
             arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
@@ -212,7 +219,7 @@ class CEnv(Env):
             else:
                 space = gym.spaces.Box(arr[:len(arr) // 2], arr[len(arr) // 2:])
 
-            self.action_space[c_make_data.action_spaces[i].key] = space
+            self.action_space[self.c_make_data.action_spaces[i].key] = space
 
     def step(self, action: gym.core.ActType) -> Tuple[gym.core.ObsType, float, bool, bool, dict]:
         c_actions = None
@@ -246,36 +253,37 @@ class CEnv(Env):
         else:
             raise(Exception("Unrecognized action type! Supported are: int, np.array, Dict[np.array]"))
             
-        c_step_data_p = self.lib.cgym_step(c_actions, c_int32(num_actions))
+        ret = self.lib.cgym_step(c_actions, c_int32(num_actions))
 
-        c_step_data = c_step_data_p.contents
+        if ret != 0:
+            raise(Exception("Non-zero error code!"))
 
         # Create observation
         observation = {}
 
-        for i in range(c_step_data.observations_size):
-            value_type = int(c_step_data.observations[i].value_type)
-            value_buffer_size = int(c_step_data.observations[i].value_buffer_size)
-            c_buffer_p = c_step_data.observations[i].value_buffer.b
+        for i in range(self.c_step_data.observations_size):
+            value_type = int(self.c_step_data.observations[i].value_type)
+            value_buffer_size = int(self.c_step_data.observations[i].value_buffer_size)
+            c_buffer_p = self.c_step_data.observations[i].value_buffer.b
 
             arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
-            observation[c_step_data.observations[i].key] = arr
+            observation[self.c_step_data.observations[i].key] = arr
         
         info = {}
 
-        for i in range(c_step_data.infos_size):
-            value_type = int(c_step_data.infos[i].value_type)
-            value_buffer_size = int(c_step_data.infos[i].value_buffer_size)
-            c_buffer_p = c_step_data.infos[i].value_buffer.b
+        for i in range(self.c_step_data.infos_size):
+            value_type = int(self.c_step_data.infos[i].value_type)
+            value_buffer_size = int(self.c_step_data.infos[i].value_buffer_size)
+            c_buffer_p = self.c_step_data.infos[i].value_buffer.b
 
             arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
-            info[c_step_data.infos[i].key] = arr
+            info[self.c_step_data.infos[i].key] = arr
 
-        reward = float(c_step_data.reward.f)
-        terminated = bool(c_step_data.terminated)
-        truncated = bool(c_step_data.truncated)
+        reward = float(self.c_step_data.reward.f)
+        terminated = bool(self.c_step_data.terminated)
+        truncated = bool(self.c_step_data.truncated)
 
         return (observation, reward, terminated, truncated, info)
 
@@ -288,32 +296,33 @@ class CEnv(Env):
         if options == None:
             c_options = CGym_Option * len(options)
 
-        c_reset_data_p = self.lib.cgym_reset(c_int32(seed), c_options, c_int32(0 if options == None else len(options)))
+        ret = self.lib.cgym_reset(c_int32(seed), c_options, c_int32(0 if options == None else len(options)))
         
-        c_reset_data = c_reset_data_p.contents
+        if ret != 0:
+            raise(Exception("Non-zero error code!"))
 
         # Create observation
         observation = {}
 
-        for i in range(c_reset_data.observations_size):
-            value_type = int(c_reset_data.observations[i].value_type)
-            value_buffer_size = int(c_reset_data.observations[i].value_buffer_size)
-            c_buffer_p = c_reset_data.observations[i].value_buffer
+        for i in range(self.c_reset_data.observations_size):
+            value_type = int(self.c_reset_data.observations[i].value_type)
+            value_buffer_size = int(self.c_reset_data.observations[i].value_buffer_size)
+            c_buffer_p = self.c_reset_data.observations[i].value_buffer
 
             arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
-            observation[c_reset_data.observations[i].key] = arr
+            observation[self.c_reset_data.observations[i].key] = arr
         
         info = {}
 
-        for i in range(c_reset_data.infos_size):
-            value_type = int(c_reset_data.infos[i].value_type)
-            value_buffer_size = int(c_reset_data.infos[i].value_buffer_size)
-            c_buffer_p = c_reset_data.infos[i].value_buffer.b
+        for i in range(self.c_reset_data.infos_size):
+            value_type = int(self.c_reset_data.infos[i].value_type)
+            value_buffer_size = int(self.c_reset_data.infos[i].value_buffer_size)
+            c_buffer_p = self.c_reset_data.infos[i].value_buffer.b
 
             arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
-            info[c_reset_data.infos[i].key] = arr
+            info[self.c_reset_data.infos[i].key] = arr
 
         return (observation, info)
 

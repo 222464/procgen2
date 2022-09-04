@@ -7,18 +7,13 @@
 // Global stuff that sticks around
 cgym_key_value observation;
 
-cgym_make_data make_data;
-cgym_reset_data reset_data;
-cgym_step_data step_data;
-cgym_frame frame;
-
 float t; // Timer
 
 int32_t cgym_get_env_version() {
     return 123;
 }
 
-cgym_make_data* cgym_make(char* render_mode, cgym_option* options, int32_t options_size) {
+int32_t cgym_make(char* render_mode, cgym_option* options, int32_t options_size) {
     // Allocate make data
     make_data.observation_spaces_size = 1;
     make_data.observation_spaces = (cgym_key_value*)malloc(sizeof(cgym_key_value));
@@ -69,39 +64,39 @@ cgym_make_data* cgym_make(char* render_mode, cgym_option* options, int32_t optio
     step_data.infos = NULL;
 
     // Frame
-    frame.value_type = CGYM_VALUE_TYPE_BYTE;
-    frame.value_buffer_height = 8;
-    frame.value_buffer_width = 8;
-    frame.value_buffer_channels = 3;
-    frame.value_buffer.b = (uint8_t*)malloc(8 * 8 * 3 * sizeof(uint8_t));
+    render_data.value_type = CGYM_VALUE_TYPE_BYTE;
+    render_data.value_buffer_height = 8;
+    render_data.value_buffer_width = 8;
+    render_data.value_buffer_channels = 3;
+    render_data.value_buffer.b = (uint8_t*)malloc(8 * 8 * 3 * sizeof(uint8_t));
 
     // Game
     t = 0.0f;
 
-    return &make_data;
+    return 0; // No error
 }
 
-cgym_reset_data* cgym_reset(int32_t seed, cgym_option* options, int32_t options_size) {
+int32_t cgym_reset(int32_t seed, cgym_option* options, int32_t options_size) {
     t = 0.0f;
 
-    return &reset_data;
+    return 0; // No error
 }
 
-cgym_step_data* cgym_step(cgym_key_value* actions, int32_t actions_size) {
+int32_t cgym_step(cgym_key_value* actions, int32_t actions_size) {
     step_data.reward.f = sinf(t);
 
     t += 0.25f;
 
-    return &step_data;
+    return 0; // No error
 }
 
-cgym_frame* cgym_render() {
+int32_t cgym_render() {
     for (int y = 0; y < 8; y++)
         for (int x = 0; x < 8; x++) {
-            frame.value_buffer.b[0 + 3 * (x + 8 * y)] = 64;
+            render_data.value_buffer.b[0 + 3 * (x + 8 * y)] = 64;
         }
 
-    return &frame;
+    return 0; // No error
 }
 
 void cgym_close() {
@@ -120,5 +115,5 @@ void cgym_close() {
     free(observation.value_buffer.f);
 
     // Frame
-    free(frame.value_buffer.b);
+    free(render_data.value_buffer.b);
 }
