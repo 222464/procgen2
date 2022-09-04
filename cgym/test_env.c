@@ -91,6 +91,9 @@ int32_t cgym_reset(int32_t seed, cgym_option* options, int32_t options_size) {
 int32_t cgym_step(cgym_key_value* actions, int32_t actions_size) {
     step_data.reward.f = sinf(t);
 
+    for (int i = 0; i < observation.value_buffer_size; i++)
+        observation.value_buffer.f[i] = cosf(t + 0.5f * i);
+
     t += 0.25f;
 
     step_data.terminated = t >= 10.0f;
