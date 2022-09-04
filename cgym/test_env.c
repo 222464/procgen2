@@ -85,6 +85,9 @@ int32_t cgym_make(char* render_mode, cgym_option* options, int32_t options_size)
 int32_t cgym_reset(int32_t seed, cgym_option* options, int32_t options_size) {
     t = 0.0f;
 
+    for (int i = 0; i < observation.value_buffer_size; i++)
+        observation.value_buffer.f[i] = cosf(t + 0.5f * i);
+
     return 0; // No error
 }
 
