@@ -118,11 +118,11 @@ typedef struct {
     cgym_value_buffer value_buffer; // Size height * width * channels, addressed like: channel_index + channels * (x + width * y)
 } cgym_render_data;
 
-// C ENV DEVELOPERS: MODIFY THESE IN YOUR ENV!
-CGYM_API static cgym_make_data make_data;
-CGYM_API static cgym_reset_data reset_data;
-CGYM_API static cgym_step_data step_data;
-CGYM_API static cgym_render_data render_data;
+// C ENV DEVELOPERS: USE THESE IN YOUR ENV!
+CGYM_API extern cgym_make_data make_data;
+CGYM_API extern cgym_reset_data reset_data;
+CGYM_API extern cgym_step_data step_data;
+CGYM_API extern cgym_render_data render_data;
 
 // C ENV DEVELOPERS: IMPLEMENT THESE IN YOUR ENV!
 CGYM_API int32_t cgym_get_env_version(); // Version of environment

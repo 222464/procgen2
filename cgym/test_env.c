@@ -5,6 +5,11 @@
 #include <math.h>
 
 // Global stuff that sticks around
+cgym_make_data make_data;
+cgym_reset_data reset_data;
+cgym_step_data step_data;
+cgym_render_data render_data;
+
 cgym_key_value observation;
 
 float t; // Timer
