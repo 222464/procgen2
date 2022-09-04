@@ -124,6 +124,7 @@ CGYM_API extern cgym_reset_data reset_data;
 CGYM_API extern cgym_step_data step_data;
 CGYM_API extern cgym_render_data render_data;
 
+// Helper macro, put this at the top of your header after including cgym to get access to the globals
 #define CGYM_GLOBALS cgym_make_data make_data; \
                      cgym_reset_data reset_data; \
                      cgym_step_data step_data; \
