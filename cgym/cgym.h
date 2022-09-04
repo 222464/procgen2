@@ -124,6 +124,11 @@ CGYM_API extern cgym_reset_data reset_data;
 CGYM_API extern cgym_step_data step_data;
 CGYM_API extern cgym_render_data render_data;
 
+#define CGYM_GLOBALS cgym_make_data make_data; \
+                     cgym_reset_data reset_data; \
+                     cgym_step_data step_data; \
+                     cgym_render_data render_data;
+
 // C ENV DEVELOPERS: IMPLEMENT THESE IN YOUR ENV!
 CGYM_API int32_t cgym_get_env_version(); // Version of environment
 CGYM_API int32_t cgym_make(char* render_mode, cgym_option* options, int32_t options_size); // Make the environment
