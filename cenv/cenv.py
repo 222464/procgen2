@@ -16,15 +16,15 @@ from typing import (
 )
 
 # Types
-CGYM_VALUE_TYPE_INT = 0
-CGYM_VALUE_TYPE_FLOAT = 1
-CGYM_VALUE_TYPE_DOUBLE = 2
-CGYM_VALUE_TYPE_BYTE = 3
+CENV_VALUE_TYPE_INT = 0
+CENV_VALUE_TYPE_FLOAT = 1
+CENV_VALUE_TYPE_DOUBLE = 2
+CENV_VALUE_TYPE_BYTE = 3
 
-CGYM_VALUE_TYPE_BOX = 4
-CGYM_VALUE_TYPE_MULTI_DISCRETE = 5
+CENV_VALUE_TYPE_BOX = 4
+CENV_VALUE_TYPE_MULTI_DISCRETE = 5
 
-CGYM_VALUE_TYPE_TO_CTYPE = [
+CENV_VALUE_TYPE_TO_CTYPE = [
     c_int32,
     c_float,
     c_double,
@@ -35,19 +35,19 @@ CGYM_VALUE_TYPE_TO_CTYPE = [
     c_int32
 ]
 
-CGYM_PYTHON_TYPE_TO_VALUE_TYPE = {
+CENV_PYTHON_TYPE_TO_VALUE_TYPE = {
     int: 0,
     float: 1
 }
 
-CGYM_NUMPY_DTYPE_TO_VALUE_TYPE = {
+CENV_NUMPY_DTYPE_TO_VALUE_TYPE = {
     np.int32: 0,
     np.float32: 1,
     np.float64: 2,
     np.uint8: 3
 }
 
-CGYM_VALUE_TYPE_TO_NUMPY_DTYPE = [
+CENV_VALUE_TYPE_TO_NUMPY_DTYPE = [
     np.int32,
     np.float32,
     np.float64,
@@ -138,23 +138,23 @@ class CEnv(Env):
         self.lib = CDLL(lib_file_path)
 
         # Set up functions for Python
-        self.lib.cgym_get_env_version.argtypes = []
-        self.lib.cgym_get_env_version.restype = c_int32
+        self.lib.cenv_get_env_version.argtypes = []
+        self.lib.cenv_get_env_version.restype = c_int32
 
-        self.lib.cgym_make.argtypes = [c_char_p, POINTER(CGym_Option), c_int32]
-        self.lib.cgym_make.restype = c_int32
+        self.lib.cenv_make.argtypes = [c_char_p, POINTER(CGym_Option), c_int32]
+        self.lib.cenv_make.restype = c_int32
 
-        self.lib.cgym_reset.argtypes = [c_int32, POINTER(CGym_Option), c_int32]
-        self.lib.cgym_reset.restype = c_int32
+        self.lib.cenv_reset.argtypes = [c_int32, POINTER(CGym_Option), c_int32]
+        self.lib.cenv_reset.restype = c_int32
 
-        self.lib.cgym_step.argtypes = [POINTER(CGym_Key_Value), c_int32]
-        self.lib.cgym_step.restype = c_int32
+        self.lib.cenv_step.argtypes = [POINTER(CGym_Key_Value), c_int32]
+        self.lib.cenv_step.restype = c_int32
 
-        self.lib.cgym_render.argtypes = []
-        self.lib.cgym_render.restype = c_int32
+        self.lib.cenv_render.argtypes = []
+        self.lib.cenv_render.restype = c_int32
 
-        self.lib.cgym_close.argtypes = []
-        self.lib.cgym_close.restype = None
+        self.lib.cenv_close.argtypes = []
+        self.lib.cenv_close.restype = None
 
         # Get pointers to globals
         self.c_make_data = CGym_Make_Data.in_dll(self.lib, "make_data")
@@ -165,7 +165,7 @@ class CEnv(Env):
         ret = 0
 
         if options == None:
-            ret = self.lib.cgym_make(bytes("" if render_mode == None else render_mode, "ascii"), None, c_int32(0))
+            ret = self.lib.cenv_make(bytes("" if render_mode == None else render_mode, "ascii"), None, c_int32(0))
         else:
             # Make environment
             c_options = CGym_Option * len(options)
@@ -173,12 +173,12 @@ class CEnv(Env):
             for k, v in options.items():
                 c_options[i].name = k
 
-                value_type = CGYM_PYTHON_TYPE_TO_VALUE_TYPE[type(v)]
+                value_type = CENV_PYTHON_TYPE_TO_VALUE_TYPE[type(v)]
 
                 c_options[i].value_type = c_int32(value_type)
                 c_options[i].value = CGym_Value(GYM_VALUE_TYPE_TO_CTYPE[value_type](v))
 
-            ret = self.lib.cgym_make("" if render_mode == None else render_mode, c_options, c_int32(len(options)))
+            ret = self.lib.cenv_make("" if render_mode == None else render_mode, c_options, c_int32(len(options)))
 
         if ret != 0:
             raise(Exception("Non-zero error code!"))
@@ -190,11 +190,11 @@ class CEnv(Env):
             value_buffer_size = int(self.c_make_data.observation_spaces[i].value_buffer_size)
             c_buffer_p = self.c_make_data.observation_spaces[i].value_buffer.b # Always reference as bytes for now
 
-            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CENV_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             space = None
 
-            if value_type == CGYM_VALUE_TYPE_MULTI_DISCRETE:
+            if value_type == CENV_VALUE_TYPE_MULTI_DISCRETE:
                 space = gym.spaces.MultiDiscrete(arr)
             else:
                 space = gym.spaces.Box(arr[:len(arr) // 2], arr[len(arr) // 2:])
@@ -208,11 +208,11 @@ class CEnv(Env):
             value_buffer_size = int(self.c_make_data.action_spaces[i].value_buffer_size)
             c_buffer_p = self.c_make_data.action_spaces[i].value_buffer.b # Always reference as bytes for now
 
-            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CENV_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             space = None
 
-            if value_type == CGYM_VALUE_TYPE_MULTI_DISCRETE:
+            if value_type == CENV_VALUE_TYPE_MULTI_DISCRETE:
                 space = gym.spaces.MultiDiscrete(arr)
             else:
                 space = gym.spaces.Box(arr[:len(arr) // 2], arr[len(arr) // 2:])
@@ -229,14 +229,14 @@ class CEnv(Env):
             c_value_buffer = CGym_Value_Buffer()
             c_value_buffer.i = pointer(c_action)
 
-            c_actions = CGym_Key_Value(b"action", c_int32(CGYM_VALUE_TYPE_INT), c_int32(1), c_value_buffer)
+            c_actions = CGym_Key_Value(b"action", c_int32(CENV_VALUE_TYPE_INT), c_int32(1), c_value_buffer)
         elif type(action) is np.array:
             action = np.ascontiguousarray(action)
 
             c_value_buffer = CGym_Value_Buffer()
             c_value_buffer.b = addressof(action.data)
 
-            c_actions = CGym_Key_Value(b"action", c_int32(CGYM_NUMPY_DTYPE_TO_VALUE_TYPE[action.dtype]), c_int32(len(action)), c_value_buffer)
+            c_actions = CGym_Key_Value(b"action", c_int32(CENV_NUMPY_DTYPE_TO_VALUE_TYPE[action.dtype]), c_int32(len(action)), c_value_buffer)
         elif type(action) is dict:
             num_actions = len(action)
             
@@ -244,14 +244,14 @@ class CEnv(Env):
 
             for k, v in action.items():
                 c_actions[i].key = k
-                c_actions[i].value_type = c_int32(CGYM_NUMPY_DTYPE_TO_VALUE_TYPE[v.dtype])
+                c_actions[i].value_type = c_int32(CENV_NUMPY_DTYPE_TO_VALUE_TYPE[v.dtype])
                 c_actions[i].value_buffer_size = c_int32(len(k))
                 c_actions[i].value_buffer = byref(k.data)
 
         else:
             raise(Exception("Unrecognized action type! Supported are: int, np.array, Dict[np.array]"))
             
-        ret = self.lib.cgym_step(c_actions, c_int32(num_actions))
+        ret = self.lib.cenv_step(c_actions, c_int32(num_actions))
 
         if ret != 0:
             raise(Exception("Non-zero error code!"))
@@ -264,7 +264,7 @@ class CEnv(Env):
             value_buffer_size = int(self.c_step_data.observations[i].value_buffer_size)
             c_buffer_p = self.c_step_data.observations[i].value_buffer.b
 
-            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CENV_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             observation[self.c_step_data.observations[i].key] = arr
         
@@ -275,7 +275,7 @@ class CEnv(Env):
             value_buffer_size = int(self.c_step_data.infos[i].value_buffer_size)
             c_buffer_p = self.c_step_data.infos[i].value_buffer.b
 
-            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CENV_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             info[self.c_step_data.infos[i].key] = arr
 
@@ -294,7 +294,7 @@ class CEnv(Env):
         if options != None:
             c_options = CGym_Option * len(options)
 
-        ret = self.lib.cgym_reset(c_int32(seed), c_options, c_int32(0 if options == None else len(options)))
+        ret = self.lib.cenv_reset(c_int32(seed), c_options, c_int32(0 if options == None else len(options)))
         
         if ret != 0:
             raise(Exception("Non-zero error code!"))
@@ -307,7 +307,7 @@ class CEnv(Env):
             value_buffer_size = int(self.c_reset_data.observations[i].value_buffer_size)
             c_buffer_p = self.c_reset_data.observations[i].value_buffer.b
 
-            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CENV_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             observation[self.c_reset_data.observations[i].key] = arr
         
@@ -318,14 +318,14 @@ class CEnv(Env):
             value_buffer_size = int(self.c_reset_data.infos[i].value_buffer_size)
             c_buffer_p = self.c_reset_data.infos[i].value_buffer.b
 
-            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
+            arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CENV_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
             info[self.c_reset_data.infos[i].key] = arr
 
         return (observation, info)
 
     def render(self) -> gym.core.RenderFrame:
-        c_frame_p = self.lib.cgym_render()
+        c_frame_p = self.lib.cenv_render()
 
         c_frame = c_frame_p.contents
 
@@ -333,9 +333,9 @@ class CEnv(Env):
         value_buffer_size = c_frame.value_buffer_height * c_frame.value_buffer_width * c_frame.value_buffer_channels
         c_buffer_p = c_frame.value_buffer.b
 
-        arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CGYM_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
+        arr = _make_nd_array(c_buffer_p, (value_buffer_size,), dtype=CENV_VALUE_TYPE_TO_NUMPY_DTYPE[value_type])
 
         return arr.reshape(c_frame.value_buffer_height, c_frame.value_buffer_width, c_frame.value_buffer_channels)
 
     def close(self):
-        self.lib.cgym_close()
+        self.lib.cenv_close()
